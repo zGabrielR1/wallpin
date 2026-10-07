@@ -1,0 +1,25 @@
+name: wallpin
+description: Personal wallpaper roulette powered by your Pinterest feed. No official API — uses your own logged-in WebView session.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  shared_preferences: ^2.2.3
+  path_provider: ^2.1.4
+  flutter_inappwebview: ^6.0.0
+  # NOTE: no workmanager plugin — the auto-change worker is pure native
+  # (WallpaperWorker.kt), scheduled via the wallpin/scheduler MethodChannel.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

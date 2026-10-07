@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>Pinterest-like feed (mocked from real markup shapes)</title></head>
+<body>
+<div data-test-id="masonry">
+  <!-- Case 1: classic pin card, 236x thumbnail, alt title -->
+  <div data-test-id="pin" data-pin-id="1111111111">
+    <a href="/pin/1111111111/">
+      <div><img alt="neon city wallpaper" src="https://i.pinimg.com/236x/ab/cd/ef/abcdef123456.jpg" /></div>
+    </a>
+  </div>
+  <!-- Case 2: srcset with 474x currentSrc -->
+  <div data-test-id="pin">
+    <a href="https://www.pinterest.com/pin/2222222222/">
+      <img alt="mountain landscape" src="https://i.pinimg.com/474x/11/22/33/112233.jpg"
+           srcset="https://i.pinimg.com/236x/11/22/33/112233.jpg 236w, https://i.pinimg.com/474x/11/22/33/112233.jpg 474w" />
+    </a>
+  </div>
+  <!-- Case 3: meme — should be EXTRACTED here, filtered later by FilterService -->
+  <div data-test-id="pin">
+    <a href="/pin/3333333333/"><img alt="funny meme quote of the day" src="https://i.pinimg.com/736x/aa/bb/cc/aabbcc.jpg" /></a>
+  </div>
+  <!-- Case 4: duplicate pin linked twice (closeup + footer link) — must dedupe to 1 -->
+  <div data-test-id="pin">
+    <a href="/pin/4444444444/"><img alt="anime wallpaper girl" src="https://i.pinimg.com/236x/dd/ee/ff/ddeeff.jpg" /></a>
+    <a href="/pin/4444444444/">Save</a>
+  </div>
+  <!-- Case 5: video pin without <img> — extractor must skip, not crash -->
+  <div data-test-id="pin">
+    <a href="/pin/5555555555/"><video src="https://v.pinimg.com/videos/x.mp4"></video></a>
+  </div>
+  <!-- Case 6: ad / carousel card without /pin/ link — must be ignored -->
+  <div data-test-id="pin"><a href="/ideas/12345/"><img alt="not a pin" src="https://i.pinimg.com/236x/zz.jpg" /></a></div>
+  <!-- Case 7: already-originals URL must stay untouched -->
+  <div data-test-id="pin">
+    <a href="/pin/7777777777/"><img alt="desert dunes" src="https://i.pinimg.com/originals/77/88/99/778899.jpg" /></a>
+  </div>
+</div>
+</body>
+</html>

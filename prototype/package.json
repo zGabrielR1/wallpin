@@ -1,0 +1,9 @@
+{
+  "name": "wallpin-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DOM-extraction prototype harness for WallPin (throwaway, not shipped in the app)",
+  "dependencies": {
+    "jsdom": "^24.0.0"
+  }
+}
