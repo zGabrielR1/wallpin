@@ -5,25 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 
 import 'filter_service.dart';
-
-/// Candidate image found in the Pinterest feed.
-class PinCandidate {
-  final String pinId;
-  final String pageUrl;
-  final String imageUrl;
-  final String? title;
-  final int? width;
-  final int? height;
-
-  PinCandidate({
-    required this.pinId,
-    required this.pageUrl,
-    required this.imageUrl,
-    this.title,
-    this.width,
-    this.height,
-  });
-}
+import 'wallpaper_source.dart';
 
 /// Fetches wallpaper candidates from Pinterest WITHOUT the official API.
 ///
@@ -34,37 +16,61 @@ class PinCandidate {
 ///     few times, and run JS that extracts `pin id → orig image → title`.
 ///  3. HTTP fallback: Pinterest's public `widgets` endpoint
 ///     (`https://widgets.pinterest.com/v3/pidgets/boards/.../pins/`) works
-///     without auth for public boards — used when the user configures
-///     explicit board URLs in Settings.
+///     without auth for public boards — used for the explicit board URLs the
+///     user configures in Settings (mixed in by [fetch]).
 ///
 /// Why JS extraction instead of reverse-engineering `/resource/*` JSON?
 /// Pinterest rotates those internal endpoints + CSRF requirements often.
 /// DOM extraction survives those changes and keeps working with just a
 /// logged-in cookie jar.
-class PinterestScraper {
+class PinterestScraper implements WallpaperSource {
   final FilterService filters;
+  final HeadlessInAppWebView? _headless;
 
-  PinterestScraper(this.filters);
+  /// When set (e.g. from an enabled category), scopes the headless search to
+  /// this phrase instead of the user's own include-keywords.
+  final String? queryOverride;
+
+  PinterestScraper(this.filters, {HeadlessInAppWebView? headlessWebView, this.queryOverride})
+      : _headless = headlessWebView;
 
   static const _homeFeed = 'https://www.pinterest.com/';
   static const _searchBase = 'https://www.pinterest.com/search/pins/?q=';
 
-  /// Headless scrape. [headlessWebView] must be provided by the caller
-  /// (HomeScreen keeps one warm) — or pass null to create a short-lived one.
-  Future<List<PinCandidate>> fetchCandidates({
-    HeadlessInAppWebView? headlessWebView,
-    int scrollRounds = 4,
-  }) async {
-    final queries = filters.activeQueries();
+  @override
+  String get name => 'Pinterest';
+
+  /// Feed (or keyword-scoped search) plus up to [maxBoards] public boards from
+  /// Settings. Returns raw candidates; filtering happens in the caller.
+  @override
+  Future<List<PinCandidate>> fetch({int scrollRounds = 4, int maxBoards = 3}) async {
+    final out = <PinCandidate>[];
+    // A dead feed (logged out / markup change) must not take down the other
+    // sources, so boards are still attempted after a feed failure.
+    try {
+      out.addAll(await _fetchFeed(scrollRounds: scrollRounds));
+    } catch (_) {}
+    for (final b in _extraBoards().take(maxBoards)) {
+      try {
+        out.addAll(await fetchBoardPins(b));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  /// Headless scrape of the home feed or a keyword search. Uses the WebView
+  /// handed in at construction, or a short-lived one when none was given.
+  Future<List<PinCandidate>> _fetchFeed({int scrollRounds = 4}) async {
+    final queries = queryOverride != null ? [queryOverride!] : filters.activeQueries();
     final startUrl = queries.isEmpty
         ? _homeFeed
-        : '${_searchBase}${Uri.encodeQueryComponent(queries[Random().nextInt(queries.length)])}';
+        : '$_searchBase${Uri.encodeQueryComponent(queries[Random().nextInt(queries.length)])}';
 
-    final webView = headlessWebView ?? HeadlessInAppWebView(initialUrlRequest: URLRequest(url: WebUri(startUrl)));
-    if (headlessWebView == null) {
+    final webView = _headless ?? HeadlessInAppWebView(initialUrlRequest: URLRequest(url: WebUri(startUrl)));
+    if (_headless == null) {
       await webView.run();
     } else {
-      await webView.loadUrl(urlRequest: URLRequest(url: WebUri(startUrl)));
+      await webView.webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(startUrl)));
     }
     // Give the SPA time to boot.
     await Future<void>.delayed(const Duration(seconds: 4));
@@ -74,17 +80,20 @@ class PinterestScraper {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
 
-    final raw = await webView.webViewController?.evaluateJavascript(
-      source: _extractJs,
-    );
+    final raw = await webView.webViewController?.evaluateJavascript(source: _extractJs);
 
-    if (headlessWebView == null) {
+    if (_headless == null) {
       await webView.dispose();
     }
 
-    final candidates = _parseExtracted(raw);
-    return filters.apply(candidates);
+    return _parseExtracted(raw);
   }
+
+  List<String> _extraBoards() => (filters.prefs.getString('extra_boards') ?? '')
+      .split('\n')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
 
   /// Public boards need no login. Used for explicit board URLs in Settings.
   /// Example board: `https://www.pinterest.com/username/board-slug/`

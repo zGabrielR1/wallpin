@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -8,6 +10,11 @@ import '../services/pinterest_session.dart';
 /// No API keys, no OAuth app review — the user just logs in with their real
 /// Pinterest account. The session cookies stay in the WebView jar and are
 /// reused by the scraper, so the app sees the same home feed as the user.
+///
+/// Detection is deliberately strict: we only auto-advance once a *profile*
+/// element is present AND the login form is gone. The old heuristic
+/// (`innerHTML.includes('header')`) fired on the login page itself and skipped
+/// login entirely.
 class LoginScreen extends StatefulWidget {
   final PinterestSession session;
   const LoginScreen({super.key, required this.session});
@@ -17,53 +24,125 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final InAppWebViewController? _ctrl;
+  static const _loginUrl = 'https://www.pinterest.com/login/';
+  InAppWebViewController? _controller;
+
+  /// Strict logged-in probe → JSON `{loggedIn, username}`.
+  static const _detectJs = r'''
+(() => {
+  const loginForm = document.querySelector(
+    'input[name="email"], input#email, [data-test-id="login-email"], input[autocomplete="username"]');
+  const profile = document.querySelector(
+    '[data-test-id="header-profile"], [data-test-id="profile-avatar"], a[href="/settings/"], a[aria-label*="profile" i]');
+  let username = null;
+  if (profile && profile.getAttribute) {
+    const href = profile.getAttribute('href') || '';
+    const m = href.match(/^\/([A-Za-z0-9._-]+)\/?$/);
+    if (m && !['login', 'signup', 'settings', 'ideas', 'business'].includes(m[1])) {
+      username = m[1];
+    }
+  }
+  return JSON.stringify({ loggedIn: !!profile && !loginForm, username });
+})()
+''';
+
+  Future<void> _probeIfLoggedIn() async {
+    final c = _controller;
+    if (c == null) return;
+    final url = await c.getUrl();
+    if (url == null || !url.host.contains('pinterest.com') || url.path.contains('/login')) return;
+    final raw = await c.evaluateJavascript(source: _detectJs);
+    if (raw == null) return;
+    try {
+      final data = jsonDecode(raw.toString()) as Map<String, dynamic>;
+      if (data['loggedIn'] == true) {
+        await widget.session.setLoggedIn(data['username'] as String?);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged in! Fetching your feed…')));
+          Navigator.pushReplacementNamed(context, '/');
+        }
+      }
+    } catch (_) {
+      // Non-JSON / page still booting — ignore, the user can tap Continue.
+    }
+  }
+
+  Future<void> _continueManually() async {
+    await widget.session.setLoggedIn(widget.session.username);
+    if (mounted) Navigator.pushReplacementNamed(context, '/');
+  }
+
+  /// Clears the WebView cookie jar and the stored flag → next login screen is
+  /// a fresh account.
+  Future<void> _logoutAndSwitch() async {
+    await CookieManager.instance().deleteAllCookies();
+    await widget.session.logout();
+    final c = _controller;
+    if (c != null) {
+      await c.loadUrl(urlRequest: URLRequest(url: WebUri(_loginUrl)));
+    }
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signed out of Pinterest.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final loggedIn = widget.session.isLoggedIn;
     return Scaffold(
-      appBar: AppBar(title: const Text('Log in with Pinterest')),
+      appBar: AppBar(
+        title: const Text('Pinterest account'),
+        actions: [
+          if (loggedIn)
+            TextButton.icon(
+              onPressed: _logoutAndSwitch,
+              icon: const Icon(Icons.logout, color: Colors.white),
+              label: const Text('Log out', style: TextStyle(color: Colors.white)),
+            ),
+        ],
+      ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: loggedIn ? Colors.green.shade100 : Colors.orange.shade100,
             child: Text(
-              'Log in below with your Pinterest account. WallPin never sees your password — '
-              'it only reuses this logged-in session to read your own home feed.',
+              loggedIn
+                  ? 'Signed in as ${widget.session.username ?? 'your account'}. Log in below to switch accounts.'
+                  : 'Not signed in. Log in below — WallPin never sees your password, it only reuses the session to read your own home feed.',
             ),
           ),
           Expanded(
             child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri('https://www.pinterest.com/login/')),
+              initialUrlRequest: URLRequest(url: WebUri(_loginUrl)),
               initialSettings: InAppWebViewSettings(javaScriptEnabled: true, thirdPartyCookiesEnabled: true),
-              onWebViewCreated: (c) => _ctrl = c,
+              onWebViewCreated: (c) => _controller = c,
               onLoadStop: (controller, url) async {
-                // Heuristic: user avatar / header appears once logged in.
-                final marker = await controller.evaluateJavascript(
-                  source: "document.documentElement.innerHTML.includes('header') && document.cookie.includes('csrftoken')",
-                );
-                if (marker == true && (url?.host.contains('pinterest.com') ?? false)) {
-                  final username = await controller.evaluateJavascript(
-                    source: "document.documentElement.innerHTML.match(/\\/([^\\/\\\"]+)\\/pins\\//)?.[1] ?? null",
-                  );
-                  await widget.session.setLoggedIn(username?.toString());
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged in! Fetching your feed…')));
-                    Navigator.pushReplacementNamed(context, '/');
-                  }
-                }
+                _controller = controller;
+                await _probeIfLoggedIn();
               },
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: OutlinedButton(
-              onPressed: () async {
-                // Manual "I'm logged in" escape hatch if auto-detect misses.
-                await widget.session.setLoggedIn(null);
-                if (context.mounted) Navigator.pushReplacementNamed(context, '/');
-              },
-              child: const Text("I've logged in — continue"),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _logoutAndSwitch,
+                    child: const Text('Log out / switch account'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _continueManually,
+                    child: const Text("I'm logged in — continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

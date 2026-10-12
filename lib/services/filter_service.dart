@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'pinterest_scraper.dart';
+import 'wallpaper_source.dart';
 
 /// Include/exclude keyword filtering + portrait-orientation preference.
 ///

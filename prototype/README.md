@@ -12,6 +12,12 @@ Proves the Pinterest scraping strategy works without an official API.
 - `live_board_check.py` — hits the real no-auth pidgets endpoint for a public
   board and verifies the downloader chain (originals → thumbnail fallback).
   Run: `python live_board_check.py`
+- `wallhaven_check.py` — hits the live Wallhaven search API (keyless, SFW,
+  portrait) and verifies the `WallhavenSource.parseSearch` field mapping plus a
+  full-res `path` download. Run: `python wallhaven_check.py`
+- `konachan_check.py` — hits the live Konachan Moebooru API (keyless, SFW,
+  random) and verifies the `KonachanSource.parsePosts` field mapping plus a
+  full-res `file_url` download. Run: `python konachan_check.py`
 
 Live findings baked into the app (2026-10-07):
 1. Pidgets image keys are `236x`/`237x`/`564x` — there is NO `orig` key.

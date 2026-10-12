@@ -43,7 +43,7 @@ class WallPinApp extends StatelessWidget {
         '/': (_) => HomeScreen(session: session, history: history),
         '/login': (_) => LoginScreen(session: session),
         '/history': (_) => HistoryScreen(history: history),
-        '/settings': (_) => const SettingsScreen(),
+        '/settings': (_) => SettingsScreen(session: session),
       },
     );
   }

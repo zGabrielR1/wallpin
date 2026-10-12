@@ -5,8 +5,10 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'categories.dart';
 import 'filter_service.dart';
-import 'pinterest_scraper.dart';
+import 'source_registry.dart';
+import 'wallpaper_source.dart';
 
 /// Foreground refill for the background worker's queue.
 ///
@@ -32,22 +34,20 @@ class PrefetchService {
     }
   }
 
-  /// Scrapes fresh candidates (feed + up to 2 boards) and merges them into
+  /// Scrapes fresh candidates from every enabled source and merges them into
   /// the queue. No-op when the queue is already full enough.
-  static Future<void> topUp(PinterestScraper scraper, {HeadlessInAppWebView? headless}) async {
+  static Future<void> topUp({HeadlessInAppWebView? headless}) async {
     if (await queueSize() >= _target) return;
     final prefs = await SharedPreferences.getInstance();
     final fresh = <PinCandidate>[];
-    try {
-      fresh.addAll(await scraper.fetchCandidates(headlessWebView: headless, scrollRounds: 3));
-    } catch (_) {}
-    for (final b in extraBoards(prefs).take(2)) {
+    for (final source in buildSources(prefs, headless: headless, category: randomCategory(prefs))) {
       try {
-        fresh.addAll(await scraper.fetchBoardPins(b));
+        fresh.addAll(await source.fetch(scrollRounds: 3));
       } catch (_) {}
     }
-    if (fresh.isEmpty) return;
-    fresh.shuffle();
+    final filtered = FilterService(prefs).apply(fresh);
+    if (filtered.isEmpty) return;
+    filtered.shuffle();
 
     final f = await _file();
     Map<String, dynamic> json = {'urls': [], 'boards': extraBoards(prefs)};
@@ -58,7 +58,7 @@ class PrefetchService {
     } catch (_) {}
     final urls = (json['urls'] as List? ?? []).whereType<Map>().toList();
     final seen = urls.map((e) => e['id']).toSet();
-    for (final c in fresh) {
+    for (final c in filtered) {
       if (seen.add(c.pinId)) {
         urls.add({'id': c.pinId, 'pageUrl': c.pageUrl, 'imageUrl': c.imageUrl, 'title': c.title});
       }

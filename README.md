@@ -1,6 +1,6 @@
 # WallPin 🎲📌
 
-Personal wallpaper roulette powered by **your own Pinterest feed** — no official API, no server, no other users.
+Personal wallpaper roulette powered by **your own Pinterest feed** (and optional **Wallhaven**) — no official API, no server, no other users.
 
 ## Why no Pinterest API?
 
@@ -19,10 +19,28 @@ This is fragile by nature (Pinterest changes markup), but fine for 1-user person
 - Pinterest login via WebView (password never touches app code)
 - Home feed + keyword-scoped search (`include keywords`)
 - Exclude-keyword + portrait-only filtering (memes/quotes dropped)
-- 🎲 **Change random wallpaper** roulette button
+- 🎲 **Change random wallpaper** roulette button — animated (breathing gradient + spinning die), pulls from every enabled source
+- **Categories**: pick vibes (Anime, Nature, Cars, Abstract, Art, Space, City, Minimal, Fantasy, Games, Sci-Fi, Flowers) — each roll picks one at random and maps it to every source's query language
+- **Wallhaven source**: public JSON API, keyless by default (SFW); optional API key unlocks sketchy/NSFW, tags, categories, sorting (random/toplist/…)
+- **Konachan source**: keyless Moebooru API (anime wallpapers), `order:random`, SFW mirror by default, optional tags
+- **Pinterest account manager**: strict login detection + explicit log out / switch account (Settings or the login screen)
 - History cache: configurable count (default 10) + retention days (default 30)
 - Auto-change via native WorkManager worker (default 1/day, 1h–168h, survives reboot/app kill)
 - Tap history item to restore it
+
+## Sources
+
+Sources are pluggable via `WallpaperSource` (`lib/services/wallpaper_source.dart`).
+Each returns `PinCandidate`s; the roulette/PrefetchService pull from all enabled
+sources and apply `FilterService` once.
+
+| Source | Needs | Notes |
+|---|---|---|
+| `PinterestScraper` | WebView login | Headless JS scrape of feed/search + public-board pidgets fallback |
+| `WallhavenSource` | network | `https://wallhaven.cc/api/v1/search`, `sorting=random`, optional API key |
+| `KonachanSource` | network | `https://konachan.net/post.json` (SFW) / `konachan.com`, `order:random`, optional tags |
+
+Enabled sources are assembled in `lib/services/source_registry.dart` from saved settings.
 
 ## Project layout
 
@@ -32,7 +50,12 @@ lib/
   models/wallpaper_entry.dart
   services/
     pinterest_session.dart     # login state (cookies live in WebView)
+    wallpaper_source.dart      # PinCandidate + WallpaperSource interface (Flutter-free)
     pinterest_scraper.dart     # headless-WebView JS extraction + board fallback
+    wallhaven_source.dart      # Wallhaven JSON API source (keyless-capable)
+    konachan_source.dart       # Konachan/Moebooru JSON API source (keyless)
+    categories.dart            # preset categories → per-source query terms
+    source_registry.dart       # builds enabled sources from settings
     filter_service.dart        # include/exclude + portrait filtering
     wallpaper_service.dart     # download (originals→thumb fallback) + MethodChannel
     history_store.dart         # cache w/ max-count + TTL pruning + pending import
@@ -40,6 +63,8 @@ lib/
     prefetch_service.dart      # refills wallpin_queue.json for the background worker
   screens/
     login_screen.dart home_screen.dart history_screen.dart settings_screen.dart
+  widgets/
+    roulette_button.dart       # animated gradient roulette button
 android/app/src/main/...       # MainActivity.kt (wallpaper + scheduler channels),
                                # WallpaperWorker.kt (pure-native periodic auto-change)
 ```
@@ -63,6 +88,6 @@ Apple doesn't let apps change the wallpaper programmatically. The planned iOS ve
 
 ## Roadmap (from your goals)
 
-- [ ] Wallhaven / other sources (`PinterestScraper` → `Source` interface)
+- [x] Wallhaven / other sources (`PinterestScraper` → `Source` interface)
 - [ ] Linux/Wayland companion (separate repo — `swww`/`hyprpaper` backend)
 - [ ] iOS save-to-Photos variant

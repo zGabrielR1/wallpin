@@ -6,12 +6,15 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/wallpaper_entry.dart';
+import '../services/categories.dart';
 import '../services/filter_service.dart';
 import '../services/history_store.dart';
-import '../services/pinterest_scraper.dart';
 import '../services/pinterest_session.dart';
 import '../services/prefetch_service.dart';
+import '../services/source_registry.dart';
 import '../services/wallpaper_service.dart';
+import '../services/wallpaper_source.dart';
+import '../widgets/roulette_button.dart';
 
 /// Main screen: current wallpaper + big "roulette" button.
 class HomeScreen extends StatefulWidget {
@@ -39,9 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.history.importPending().then((n) {
       if (n > 0 && mounted) setState(() {});
     });
-    SharedPreferences.getInstance().then((prefs) {
+    SharedPreferences.getInstance().then((_) {
       // ignore: discarded_futures
-      PrefetchService.topUp(PinterestScraper(FilterService(prefs)), headless: _headless);
+      PrefetchService.topUp(headless: _headless);
     });
   }
 
@@ -54,22 +57,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _roulette() async {
     setState(() {
       _busy = true;
-      _status = 'Reading your Pinterest feed…';
+      _status = 'Rolling across your sources…';
     });
     try {
       final prefs = await SharedPreferences.getInstance();
-      final scraper = PinterestScraper(FilterService(prefs));
+      final category = randomCategory(prefs);
+      final sources = buildSources(prefs, headless: _headless, category: category);
+      if (category != null) setState(() => _status = 'Rolling in “${category.name}”…');
 
-      // Also mix in explicit public boards configured in Settings.
-      final boardsRaw = prefs.getString('extra_boards') ?? '';
-      final boardUrls = boardsRaw.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
-      var candidates = await scraper.fetchCandidates(headlessWebView: _headless);
-      for (final b in boardUrls.take(3)) {
-        candidates.addAll(await scraper.fetchBoardPins(b));
+      // Pull from every source; one failing (e.g. logged-out Pinterest) must
+      // not sink the roll, so errors are collected and only reported if we
+      // end up with nothing.
+      final raw = <PinCandidate>[];
+      final errors = <String>[];
+      for (final s in sources) {
+        try {
+          raw.addAll(await s.fetch());
+        } catch (e) {
+          errors.add('${s.name}: $e');
+        }
       }
+      final candidates = FilterService(prefs).apply(raw);
       if (candidates.isEmpty) {
-        setState(() => _status = 'No wallpapers found. Try adding include keywords in Settings, or scroll your feed once in the login view.');
+        final detail = errors.isEmpty ? '' : ' (${errors.join('; ')})';
+        setState(() => _status = 'No wallpapers found. Try adding include keywords in Settings, or scroll your feed once in the login view.$detail');
         return;
       }
       final pick = candidates[Random().nextInt(candidates.length)];
@@ -90,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Refill the background worker's queue with the fresh candidates
       // (fire-and-forget — the wallpaper is already set).
       // ignore: discarded_futures
-      PrefetchService.topUp(scraper, headless: _headless);
+      PrefetchService.topUp(headless: _headless);
     } catch (e) {
       setState(() => _status = 'Failed: $e');
     } finally {
@@ -127,13 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               if (_status != null) Text(_status!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _busy ? null : _roulette,
-                icon: _busy
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.casino),
-                label: Text(_busy ? 'Rolling…' : 'Change random wallpaper'),
-              ),
+              RouletteButton(onPressed: _busy ? null : _roulette, busy: _busy),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/history'),
                 child: Text('History (${widget.history.entries.length} cached)'),
