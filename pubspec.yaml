@@ -1,7 +1,7 @@
 name: wallpin
 description: Personal wallpaper roulette powered by your Pinterest feed. No official API — uses your own logged-in WebView session.
 publish_to: "none"
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: ">=3.2.0 <4.0.0"

@@ -23,6 +23,7 @@ This is fragile by nature (Pinterest changes markup), but fine for 1-user person
 - **Categories**: pick vibes (Anime, Nature, Cars, Abstract, Art, Space, City, Minimal, Fantasy, Games, Sci-Fi, Flowers) — each roll picks one at random and maps it to every source's query language
 - **Wallhaven source**: public JSON API, keyless by default (SFW); optional API key unlocks sketchy/NSFW, tags, categories, sorting (random/toplist/…)
 - **Konachan source**: keyless Moebooru API (anime wallpapers), `order:random`, SFW mirror by default, optional tags
+- **Safebooru source**: keyless SFW-only anime booru, `sort:random`, shares the booru tag language with Konachan
 - **Openverse source**: keyless Creative-Commons photos & art, `aspect_ratio=tall`, optional token for a higher rate limit
 - **Pinterest account manager**: strict login detection + explicit log out / switch account (Settings or the login screen), Google sign-in popup handled in-WebView
 - History cache: configurable count (default 10) + retention days (default 30)
@@ -40,6 +41,7 @@ sources and apply `FilterService` once.
 | `PinterestScraper` | WebView login | Headless JS scrape of feed/search + public-board pidgets fallback |
 | `WallhavenSource` | network | `https://wallhaven.cc/api/v1/search`, `sorting=random`, optional API key |
 | `KonachanSource` | network | `https://konachan.net/post.json` (SFW) / `konachan.com`, `order:random`, optional tags |
+| `SafebooruSource` | network | `https://safebooru.org/index.php?page=dapi…`, `sort:random`, SFW-only |
 | `OpenverseSource` | network | `https://api.openverse.org/v1/images/`, `aspect_ratio=tall`, 200 req/day keyless |
 
 Enabled sources are assembled in `lib/services/source_registry.dart` from saved settings.
@@ -56,6 +58,7 @@ lib/
     pinterest_scraper.dart     # headless-WebView JS extraction + board fallback
     wallhaven_source.dart      # Wallhaven JSON API source (keyless-capable)
     konachan_source.dart       # Konachan/Moebooru JSON API source (keyless)
+    safebooru_source.dart      # Safebooru SFW-only anime booru source (keyless)
     openverse_source.dart      # Openverse CC photos & art source (keyless)
     categories.dart            # preset categories → per-source query terms
     source_registry.dart       # builds enabled sources from settings

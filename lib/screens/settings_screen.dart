@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _whQuery = TextEditingController();
   final _whKey = TextEditingController();
   final _kcTags = TextEditingController();
+  final _sbTags = TextEditingController();
   final _ovQuery = TextEditingController();
   final _ovKey = TextEditingController();
   final Set<String> _categories = {};
@@ -34,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _whSorting = 'random';
   bool _kcEnabled = false;
   bool _kcSafe = true;
+  bool _sbEnabled = true;
   bool _ovEnabled = false;
   bool _autoEnabled = true;
   double _hours = 24;
@@ -64,6 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _kcEnabled = p.getBool('konachan_enabled') ?? false;
         _kcSafe = p.getBool('konachan_safe') ?? true;
         _kcTags.text = p.getString('konachan_tags') ?? '';
+        _sbEnabled = p.getBool('safebooru_enabled') ?? true;
+        _sbTags.text = p.getString('safebooru_tags') ?? '';
         _ovEnabled = p.getBool('openverse_enabled') ?? false;
         _ovQuery.text = p.getString('openverse_query') ?? '';
         _ovKey.text = p.getString('openverse_apikey') ?? '';
@@ -96,6 +100,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await p.setBool('konachan_enabled', _kcEnabled);
     await p.setString('konachan_tags', _kcTags.text);
     await p.setBool('konachan_safe', _kcSafe);
+    await p.setBool('safebooru_enabled', _sbEnabled);
+    await p.setString('safebooru_tags', _sbTags.text);
     await p.setBool('openverse_enabled', _ovEnabled);
     await p.setString('openverse_query', _ovQuery.text);
     await p.setString('openverse_apikey', _ovKey.text.trim());
@@ -225,6 +231,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(title: const Text('Konachan source'), subtitle: const Text('Anime wallpapers — keyless Moebooru API'), value: _kcEnabled, onChanged: (v) => setState(() => _kcEnabled = v)),
           TextField(controller: _kcTags, decoration: const InputDecoration(labelText: 'Konachan tags', hintText: 'e.g. scenery landscape city')),
           SwitchListTile(title: const Text('Safe only (konachan.net)'), subtitle: const Text('Off uses konachan.com and may include NSFW'), value: _kcSafe, onChanged: (v) => setState(() => _kcSafe = v)),
+          const Divider(),
+          SwitchListTile(title: const Text('Safebooru source'), subtitle: const Text('SFW-only anime booru — keyless, random'), value: _sbEnabled, onChanged: (v) => setState(() => _sbEnabled = v)),
+          TextField(controller: _sbTags, decoration: const InputDecoration(labelText: 'Safebooru tags', hintText: 'e.g. scenery landscape')),
           const Divider(),
           SwitchListTile(title: const Text('Openverse source'), subtitle: const Text('CC photos & art — keyless, 200 req/day'), value: _ovEnabled, onChanged: (v) => setState(() => _ovEnabled = v)),
           TextField(controller: _ovQuery, decoration: const InputDecoration(labelText: 'Openverse query', hintText: 'e.g. nature landscape, art painting')),

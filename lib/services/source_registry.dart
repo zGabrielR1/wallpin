@@ -6,6 +6,7 @@ import 'filter_service.dart';
 import 'konachan_source.dart';
 import 'openverse_source.dart';
 import 'pinterest_scraper.dart';
+import 'safebooru_source.dart';
 import 'wallhaven_source.dart';
 import 'wallpaper_source.dart';
 
@@ -26,6 +27,7 @@ List<WallpaperSource> buildSources(
   return [
     if (prefs.getBool('wallhaven_enabled') ?? true) wallhavenFromPrefs(prefs, filters, category),
     if (prefs.getBool('konachan_enabled') ?? false) konachanFromPrefs(prefs, category),
+    if (prefs.getBool('safebooru_enabled') ?? true) safebooruFromPrefs(prefs, category),
     if (prefs.getBool('openverse_enabled') ?? false) openverseFromPrefs(prefs, filters, category),
     PinterestScraper(filters, headlessWebView: headless, queryOverride: category?.pinterest),
   ];
@@ -41,6 +43,14 @@ WallhavenSource wallhavenFromPrefs(SharedPreferences prefs, FilterService filter
     sorting: prefs.getString('wallhaven_sorting') ?? 'random',
     apiKey: key.isEmpty ? null : key,
     portraitOnly: filters.portraitOnly,
+  );
+}
+
+/// Reads the Safebooru knobs persisted by SettingsScreen. Reuses the category's
+/// booru tag terms — Safebooru shares the Danbooru/Moebooru tag language.
+SafebooruSource safebooruFromPrefs(SharedPreferences prefs, [WallpaperCategory? category]) {
+  return SafebooruSource(
+    tags: category?.konachan ?? prefs.getString('safebooru_tags') ?? '',
   );
 }
 
