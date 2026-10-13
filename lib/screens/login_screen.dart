@@ -25,6 +25,14 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   static const _loginUrl = 'https://www.pinterest.com/login/';
+
+  /// Google refuses embedded WebViews whose UA doesn't look like a real Chrome
+  /// ("This browser or app may not be secure"), which surfaces as a blank or
+  /// black page. A desktop Chrome UA keeps the OAuth popup usable.
+  static const _desktopChromeUA =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
   InAppWebViewController? _controller;
 
   /// Strict logged-in probe → JSON `{loggedIn, username}`.
@@ -117,7 +125,27 @@ class _LoginScreenState extends State<LoginScreen> {
           Expanded(
             child: InAppWebView(
               initialUrlRequest: URLRequest(url: WebUri(_loginUrl)),
-              initialSettings: InAppWebViewSettings(javaScriptEnabled: true, thirdPartyCookiesEnabled: true),
+              initialSettings: InAppWebViewSettings(
+                javaScriptEnabled: true,
+                thirdPartyCookiesEnabled: true,
+                userAgent: _desktopChromeUA,
+                // "Continue with Google" opens window.open(); without these the
+                // popup becomes an invisible window and the page goes black.
+                javaScriptCanOpenWindowsAutomatically: true,
+                supportMultipleWindows: true,
+                useWideViewPort: true,
+                mediaPlaybackRequiresUserGesture: false,
+                mixedContentMode: MixedContentMode.MIXED_CONTENT_COMPATIBILITY_MODE,
+              ),
+              onCreateWindow: (controller, createWindowAction) async {
+                // Load the popup into this same WebView instead of a separate,
+                // unrendered window.
+                final url = createWindowAction.request.url;
+                if (url != null && url.toString() != 'about:blank') {
+                  await controller.loadUrl(urlRequest: URLRequest(url: url));
+                }
+                return false;
+              },
               onWebViewCreated: (c) => _controller = c,
               onLoadStop: (controller, url) async {
                 _controller = controller;

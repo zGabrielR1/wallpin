@@ -15,27 +15,36 @@ class WallpaperCategory {
   /// Konachan/Moebooru tag query (space-separated = AND).
   final String konachan;
 
+  /// Openverse free-text query (photo/art search — phrases work better).
+  final String openverse;
+
   /// Pinterest include-keywords (scopes the headless search / feed).
   final String pinterest;
 
-  const WallpaperCategory(this.name, {required this.wallhaven, required this.konachan, required this.pinterest});
+  const WallpaperCategory(
+    this.name, {
+    required this.wallhaven,
+    required this.konachan,
+    required this.openverse,
+    required this.pinterest,
+  });
 }
 
 /// The curated set shown as chips in Settings. Keep the per-source terms short
 /// — they are combined with the source's own safety/sort params, not raw URLs.
 const List<WallpaperCategory> kCategories = [
-  WallpaperCategory('Anime', wallhaven: 'anime', konachan: 'anime', pinterest: 'anime wallpaper'),
-  WallpaperCategory('Nature', wallhaven: 'nature', konachan: 'scenery nature', pinterest: 'nature wallpaper'),
-  WallpaperCategory('Cars', wallhaven: 'cars', konachan: 'car', pinterest: 'cars wallpaper'),
-  WallpaperCategory('Abstract', wallhaven: 'abstract', konachan: 'abstract', pinterest: 'abstract wallpaper'),
-  WallpaperCategory('Art', wallhaven: 'art', konachan: 'art', pinterest: 'art wallpaper'),
-  WallpaperCategory('Space', wallhaven: 'space', konachan: 'space', pinterest: 'space wallpaper'),
-  WallpaperCategory('City', wallhaven: 'cityscape', konachan: 'city', pinterest: 'city wallpaper'),
-  WallpaperCategory('Minimal', wallhaven: 'minimalism', konachan: 'minimalistic', pinterest: 'minimal wallpaper'),
-  WallpaperCategory('Fantasy', wallhaven: 'fantasy', konachan: 'fantasy', pinterest: 'fantasy wallpaper'),
-  WallpaperCategory('Games', wallhaven: 'video games', konachan: 'game cg', pinterest: 'game wallpaper'),
-  WallpaperCategory('Sci-Fi', wallhaven: 'sci-fi', konachan: 'sci-fi', pinterest: 'sci-fi wallpaper'),
-  WallpaperCategory('Flowers', wallhaven: 'flowers', konachan: 'flowers', pinterest: 'flowers wallpaper'),
+  WallpaperCategory('Anime', wallhaven: 'anime', konachan: 'anime', openverse: 'anime illustration', pinterest: 'anime wallpaper'),
+  WallpaperCategory('Nature', wallhaven: 'nature', konachan: 'scenery nature', openverse: 'nature landscape', pinterest: 'nature wallpaper'),
+  WallpaperCategory('Cars', wallhaven: 'cars', konachan: 'car', openverse: 'car', pinterest: 'cars wallpaper'),
+  WallpaperCategory('Abstract', wallhaven: 'abstract', konachan: 'abstract', openverse: 'abstract', pinterest: 'abstract wallpaper'),
+  WallpaperCategory('Art', wallhaven: 'art', konachan: 'art', openverse: 'art painting', pinterest: 'art wallpaper'),
+  WallpaperCategory('Space', wallhaven: 'space', konachan: 'space', openverse: 'space galaxy', pinterest: 'space wallpaper'),
+  WallpaperCategory('City', wallhaven: 'cityscape', konachan: 'city', openverse: 'city skyline', pinterest: 'city wallpaper'),
+  WallpaperCategory('Minimal', wallhaven: 'minimalism', konachan: 'minimalistic', openverse: 'minimal', pinterest: 'minimal wallpaper'),
+  WallpaperCategory('Fantasy', wallhaven: 'fantasy', konachan: 'fantasy', openverse: 'fantasy', pinterest: 'fantasy wallpaper'),
+  WallpaperCategory('Games', wallhaven: 'video games', konachan: 'game cg', openverse: 'video game', pinterest: 'game wallpaper'),
+  WallpaperCategory('Sci-Fi', wallhaven: 'sci-fi', konachan: 'sci-fi', openverse: 'science fiction', pinterest: 'sci-fi wallpaper'),
+  WallpaperCategory('Flowers', wallhaven: 'flowers', konachan: 'flowers', openverse: 'flowers', pinterest: 'flowers wallpaper'),
 ];
 
 const kCategoriesKey = 'categories';

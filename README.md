@@ -19,11 +19,12 @@ This is fragile by nature (Pinterest changes markup), but fine for 1-user person
 - Pinterest login via WebView (password never touches app code)
 - Home feed + keyword-scoped search (`include keywords`)
 - Exclude-keyword + portrait-only filtering (memes/quotes dropped)
-- 🎲 **Change random wallpaper** roulette button — animated (breathing gradient + spinning die), pulls from every enabled source
+- 🎲 **Change random wallpaper** roulette button — gradient pill with a soft glow; the die spins while rolling
 - **Categories**: pick vibes (Anime, Nature, Cars, Abstract, Art, Space, City, Minimal, Fantasy, Games, Sci-Fi, Flowers) — each roll picks one at random and maps it to every source's query language
 - **Wallhaven source**: public JSON API, keyless by default (SFW); optional API key unlocks sketchy/NSFW, tags, categories, sorting (random/toplist/…)
 - **Konachan source**: keyless Moebooru API (anime wallpapers), `order:random`, SFW mirror by default, optional tags
-- **Pinterest account manager**: strict login detection + explicit log out / switch account (Settings or the login screen)
+- **Openverse source**: keyless Creative-Commons photos & art, `aspect_ratio=tall`, optional token for a higher rate limit
+- **Pinterest account manager**: strict login detection + explicit log out / switch account (Settings or the login screen), Google sign-in popup handled in-WebView
 - History cache: configurable count (default 10) + retention days (default 30)
 - Auto-change via native WorkManager worker (default 1/day, 1h–168h, survives reboot/app kill)
 - Tap history item to restore it
@@ -39,6 +40,7 @@ sources and apply `FilterService` once.
 | `PinterestScraper` | WebView login | Headless JS scrape of feed/search + public-board pidgets fallback |
 | `WallhavenSource` | network | `https://wallhaven.cc/api/v1/search`, `sorting=random`, optional API key |
 | `KonachanSource` | network | `https://konachan.net/post.json` (SFW) / `konachan.com`, `order:random`, optional tags |
+| `OpenverseSource` | network | `https://api.openverse.org/v1/images/`, `aspect_ratio=tall`, 200 req/day keyless |
 
 Enabled sources are assembled in `lib/services/source_registry.dart` from saved settings.
 
@@ -54,6 +56,7 @@ lib/
     pinterest_scraper.dart     # headless-WebView JS extraction + board fallback
     wallhaven_source.dart      # Wallhaven JSON API source (keyless-capable)
     konachan_source.dart       # Konachan/Moebooru JSON API source (keyless)
+    openverse_source.dart      # Openverse CC photos & art source (keyless)
     categories.dart            # preset categories → per-source query terms
     source_registry.dart       # builds enabled sources from settings
     filter_service.dart        # include/exclude + portrait filtering
@@ -64,7 +67,7 @@ lib/
   screens/
     login_screen.dart home_screen.dart history_screen.dart settings_screen.dart
   widgets/
-    roulette_button.dart       # animated gradient roulette button
+    roulette_button.dart       # gradient roulette button (spins while rolling)
 android/app/src/main/...       # MainActivity.kt (wallpaper + scheduler channels),
                                # WallpaperWorker.kt (pure-native periodic auto-change)
 ```

@@ -1,9 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
-/// The roulette button: a breathing, gradient "casino" button whose dice spins
-/// while a roll is in flight. Pure Flutter animations — no packages.
+/// The roulette button: a rounded gradient pill with a soft glow. Deliberately
+/// understated — the only motion is the die spinning while a roll is in flight
+/// (real feedback) plus a faint gradient sweep on the same condition.
 class RouletteButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final bool busy;
@@ -14,37 +13,35 @@ class RouletteButton extends StatefulWidget {
   State<RouletteButton> createState() => _RouletteButtonState();
 }
 
-class _RouletteButtonState extends State<RouletteButton> with TickerProviderStateMixin {
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
-  late final AnimationController _spin =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 850));
+class _RouletteButtonState extends State<RouletteButton> with SingleTickerProviderStateMixin {
+  /// Drives both the die spin and the gradient sweep; only runs while busy.
+  late final AnimationController _roll =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
 
   @override
   void initState() {
     super.initState();
-    _syncSpin();
+    _syncRoll();
   }
 
   @override
   void didUpdateWidget(covariant RouletteButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.busy != widget.busy) _syncSpin();
+    if (oldWidget.busy != widget.busy) _syncRoll();
   }
 
-  void _syncSpin() {
+  void _syncRoll() {
     if (widget.busy) {
-      if (!_spin.isAnimating) _spin.repeat();
+      if (!_roll.isAnimating) _roll.repeat();
     } else {
-      _spin.stop();
-      _spin.value = 0;
+      _roll.stop();
+      _roll.value = 0;
     }
   }
 
   @override
   void dispose() {
-    _pulse.dispose();
-    _spin.dispose();
+    _roll.dispose();
     super.dispose();
   }
 
@@ -53,58 +50,45 @@ class _RouletteButtonState extends State<RouletteButton> with TickerProviderStat
     final scheme = Theme.of(context).colorScheme;
     final enabled = widget.onPressed != null;
     return AnimatedBuilder(
-      animation: Listenable.merge([_pulse, _spin]),
+      animation: _roll,
       builder: (context, _) {
-        final t = _pulse.value;
-        final gradient = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(scheme.primary, scheme.tertiary, t)!,
-            Color.lerp(scheme.tertiary, scheme.secondary, t)!,
-          ],
-        );
-        // Idle: gentle breathing scale + glow. Busy: a touch of extra pop.
-        final scale = 1 + (widget.busy ? 0.02 : 0.035 * t);
-        final glow = scheme.primary.withAlpha((120 + 90 * t).round());
-
-        return Transform.scale(
-          scale: scale,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(40),
-              boxShadow: [
-                BoxShadow(color: glow, blurRadius: 22 + 14 * t, spreadRadius: 1),
-              ],
+        final t = widget.busy ? _roll.value : 0.0;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment(-1 + 2 * t, -1),
+              end: Alignment(1 + 2 * t, 1),
+              colors: [scheme.primary, scheme.tertiary],
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(40),
-                onTap: enabled ? widget.onPressed : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 18),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Idle: the die gently rocks. Busy: it spins flat out.
-                      widget.busy
-                          ? RotationTransition(
-                              turns: _spin,
-                              child: const Icon(Icons.casino, color: Colors.white, size: 30),
-                            )
-                          : Transform.rotate(
-                              angle: math.sin(t * math.pi * 2) * 0.18,
-                              child: const Icon(Icons.casino, color: Colors.white, size: 30),
-                            ),
-                      const SizedBox(width: 12),
-                      Text(
-                        widget.busy ? 'Rolling…' : 'Change random wallpaper',
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withAlpha(90),
+                blurRadius: 18,
+                spreadRadius: 1,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(32),
+              onTap: enabled ? widget.onPressed : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 17),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    widget.busy
+                        ? RotationTransition(turns: _roll, child: const Icon(Icons.casino, color: Colors.white, size: 28))
+                        : const Icon(Icons.casino, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      widget.busy ? 'Rolling…' : 'Change random wallpaper',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
             ),

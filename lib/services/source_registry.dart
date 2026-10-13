@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'categories.dart';
 import 'filter_service.dart';
 import 'konachan_source.dart';
+import 'openverse_source.dart';
 import 'pinterest_scraper.dart';
 import 'wallhaven_source.dart';
 import 'wallpaper_source.dart';
@@ -25,6 +26,7 @@ List<WallpaperSource> buildSources(
   return [
     if (prefs.getBool('wallhaven_enabled') ?? true) wallhavenFromPrefs(prefs, filters, category),
     if (prefs.getBool('konachan_enabled') ?? false) konachanFromPrefs(prefs, category),
+    if (prefs.getBool('openverse_enabled') ?? false) openverseFromPrefs(prefs, filters, category),
     PinterestScraper(filters, headlessWebView: headless, queryOverride: category?.pinterest),
   ];
 }
@@ -39,6 +41,16 @@ WallhavenSource wallhavenFromPrefs(SharedPreferences prefs, FilterService filter
     sorting: prefs.getString('wallhaven_sorting') ?? 'random',
     apiKey: key.isEmpty ? null : key,
     portraitOnly: filters.portraitOnly,
+  );
+}
+
+/// Reads the Openverse knobs persisted by SettingsScreen.
+OpenverseSource openverseFromPrefs(SharedPreferences prefs, FilterService filters, [WallpaperCategory? category]) {
+  final key = (prefs.getString('openverse_apikey') ?? '').trim();
+  return OpenverseSource(
+    query: category?.openverse ?? prefs.getString('openverse_query') ?? '',
+    portraitOnly: filters.portraitOnly,
+    apiKey: key.isEmpty ? null : key,
   );
 }
 

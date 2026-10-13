@@ -16,6 +16,7 @@ void main() {
     for (final c in kCategories) {
       expect(c.wallhaven, isNotEmpty, reason: '${c.name} wallhaven');
       expect(c.konachan, isNotEmpty, reason: '${c.name} konachan');
+      expect(c.openverse, isNotEmpty, reason: '${c.name} openverse');
       expect(c.pinterest, isNotEmpty, reason: '${c.name} pinterest');
     }
   });

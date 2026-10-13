@@ -18,6 +18,9 @@ Proves the Pinterest scraping strategy works without an official API.
 - `konachan_check.py` — hits the live Konachan Moebooru API (keyless, SFW,
   random) and verifies the `KonachanSource.parsePosts` field mapping plus a
   full-res `file_url` download. Run: `python konachan_check.py`
+- `openverse_check.py` — hits the live Openverse API (keyless, tall, large) and
+  verifies the `OpenverseSource.parseResults` field mapping plus a direct
+  `url` download. Run: `python openverse_check.py`
 
 Live findings baked into the app (2026-10-07):
 1. Pidgets image keys are `236x`/`237x`/`564x` — there is NO `orig` key.
